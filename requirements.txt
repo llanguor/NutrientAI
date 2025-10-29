@@ -5,5 +5,5 @@ loguru~=0.7.3
 lottie~=0.7.2
 pandas~=2.3.3
 numpy~=1.26.4
-tensorflow~=2.17.0
+tensorflow~=2.18.1
 scikit-learn~=1.7.2
