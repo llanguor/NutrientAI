@@ -1,0 +1,9 @@
+version: "3.9"
+
+services:
+  bot:
+    build: .
+    restart: always
+    volumes:
+      - ./appsettings.json:/usr/src/app/appsettings.json
+      - ./logger.log:/usr/src/app/logger.log

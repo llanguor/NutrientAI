@@ -1,0 +1,9 @@
+pyTelegramBotAPI~=4.29.1
+Pillow~=10.3.0
+requests~=2.32.3
+loguru~=0.7.3
+lottie~=0.7.2
+pandas~=2.3.3
+numpy~=1.26.4
+tensorflow~=2.17.0
+scikit-learn~=1.7.2
