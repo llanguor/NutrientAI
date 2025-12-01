@@ -4,23 +4,38 @@ from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import Embedding, LSTM, Dense, Bidirectional
 from tensorflow.keras.preprocessing.text import Tokenizer
 from tensorflow.keras.preprocessing.sequence import pad_sequences
+from tensorflow.keras.models import load_model
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
+from sklearn.preprocessing import MinMaxScaler
 from logger import get_logger
 
 logger = get_logger()
 
 # --- Глобальные объекты ---
-tokenizer = Tokenizer(char_level=False)
-model = None
-scaler = None
-max_len = 0
+# Загрузка модели
+model = load_model("kbju_model.keras")
 
+# Загрузка данных для инициализации tokenizer и scaler
+df = pd.read_excel("data.xlsx", engine="openpyxl")
+df = df.dropna()  # убираем пустые строки
+df.columns = df.columns.str.strip()
+
+# Инициализация tokenizer
+max_words = 10000
+max_len = 10
+tokenizer = Tokenizer(num_words=max_words, oov_token="<OOV>")
+tokenizer.fit_on_texts(df['Name'])
+
+# Инициализация scaler
+y = df[['Energy', 'Protein', 'Fat', 'Carb']].values
+scaler = MinMaxScaler()
+scaler.fit(y)
 
 def obtain_data(path):
     df = pd.read_csv(path, encoding="cp1251", sep=";")
     texts = df['Название'].astype(str).tolist()  # названия блюд
-    targets = df[['Калории', 'Жиры', 'Углеводы', 'Белки']].values.astype(float)
+    targets = df[['Energy', 'Fat', 'Carb', 'Protein']].values.astype(float)
     return texts, targets
 
 
@@ -43,43 +58,3 @@ def predict(input_text: str):
 
     except Exception as e:
         logger.error(f"Error: {e}")
-
-def init_network():
-    """Инициализирует и обучает модель."""
-    global model, scaler, tokenizer, max_len
-
-    texts, targets = obtain_data("dishes.csv")
-
-    # Токенизация
-    tokenizer.fit_on_texts(texts)
-    sequences = tokenizer.texts_to_sequences(texts)
-    max_len = max(len(seq) for seq in sequences)
-    X = pad_sequences(sequences, maxlen=max_len, padding='post')
-
-    # Масштабирование
-    scaler = StandardScaler()
-    y = scaler.fit_transform(targets)
-
-    # Разделение
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
-
-    # Архитектура модели
-    vocab_size = len(tokenizer.word_index) + 1
-    embedding_dim = 50
-
-    model = Sequential([
-        Embedding(input_dim=vocab_size, output_dim=embedding_dim, input_length=max_len),
-        Bidirectional(LSTM(64, return_sequences=False)),
-        Dense(32, activation='relu'),
-        Dense(4)  # Калории, жиры, углеводы, белки
-    ])
-
-    model.compile(optimizer='adam', loss='mse', metrics=['mae'])
-
-    # Обучение
-    model.fit(X_train, y_train, epochs=50, batch_size=32, validation_split=0.1, verbose=1)
-
-    # Оценка
-    loss, mae = model.evaluate(X_test, y_test, verbose=0)
-    logger.info(f"Test MAE: {mae:.4f}")
-    logger.info("Model is built")

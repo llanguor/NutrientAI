@@ -6,8 +6,12 @@ import threading
 from telebot import types
 from logger import get_logger
 from json_io import load_data, save_data
+from tensorflow.keras.models import load_model
+from tensorflow.keras.preprocessing.sequence import pad_sequences
+from googletrans import Translator
 import os
 
+translator = Translator()
 saved_dishes_path = "saved_dishes.json"
 data_path = "appsettings.json"
 
@@ -89,7 +93,8 @@ def register_handlers(bot: telebot.TeleBot):
             dish_name = message.text.strip()
             logger.info(f"User {message.chat.id} get dish: {dish_name}")
 
-            calories, fats, carbs, proteins = predict(dish_name)
+            dish_name_en = translator.translate(dish_name, src='auto', dest='en').text
+            calories, fats, carbs, proteins = predict(dish_name_en)
 
             answer = (
                 f"*{dish_name}*\n"
