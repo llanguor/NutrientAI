@@ -53,25 +53,53 @@ def process_url(url):
             return [name, energy, protein, fat, carb, url], None
         else:
             return None, url
-    except Exception as e:
-        return None, url  # Любая ошибка — возвращаем ссылку как ошибку
+    except Exception:
+        return None, url
 
 # Количество потоков
 max_threads = 10
 columns = ['Name', 'Energy', 'Protein', 'Fat', 'Carb', 'URL']
 
+
+already_processed = set()
+
+if os.path.exists(output_file):
+    try:
+        df_done = pd.read_excel(output_file)
+        if 'URL' in df_done:
+            already_processed = set(df_done['URL'].astype(str))
+            print(f"Найдено уже обработанных ссылок: {len(already_processed)}")
+    except Exception as e:
+        print("Не удалось прочитать существующий XLSX:", e)
+
+# Фильтруем входной файл
+df['url'] = df['url'].astype(str)
+df_to_process = df[~df['url'].isin(already_processed)]
+
+print(f"Всего ссылок во входном файле: {len(df)}")
+print(f"Осталось обработать: {len(df_to_process)}")
+
+# Начальный count включает уже сделанные
+count = len(already_processed)
+
 # Создаем пустой Excel-файл, если его нет
 if not os.path.exists(output_file):
     pd.DataFrame(columns=columns).to_excel(output_file, index=False)
 
+# ----------------------------------------
+# Основная обработка
+# ----------------------------------------
+
 with ThreadPoolExecutor(max_threads) as executor:
-    future_to_url = {executor.submit(process_url, row['url']): row['url'] for _, row in df.iterrows()}
-    count = 0
+    future_to_url = {
+        executor.submit(process_url, row['url']): row['url']
+        for _, row in df_to_process.iterrows()
+    }
+
     for future in as_completed(future_to_url):
         try:
             result, error = future.result()
-        except Exception as e:
-            # Любая ошибка здесь игнорируется, просто логируем
+        except Exception:
             error = future_to_url[future]
             result = None
 
@@ -82,16 +110,17 @@ with ThreadPoolExecutor(max_threads) as executor:
         if error:
             errors.append(error)
 
-        # Сохраняем каждые 100 обработанных ссылок
+        # Сохраняем каждые 100 новых обработанных ссылок
         if count % 100 == 0 and results:
             df_chunk = pd.DataFrame(results, columns=columns)
             with pd.ExcelWriter(output_file, mode='a', if_sheet_exists='overlay', engine='openpyxl') as writer:
                 startrow = writer.sheets['Sheet1'].max_row if 'Sheet1' in writer.sheets else 0
                 df_chunk.to_excel(writer, index=False, header=False, startrow=startrow)
-            results = []
-            print(f"Сохранил {count} обработанных ссылок")
 
-# Сохраняем оставшиеся
+            results = []
+            print(f"Сохранил {count} обработанных ссылок (включая старые)")
+
+# Финальное сохранение
 if results:
     df_chunk = pd.DataFrame(results, columns=columns)
     with pd.ExcelWriter(output_file, mode='a', if_sheet_exists='overlay', engine='openpyxl') as writer:
