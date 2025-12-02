@@ -121,7 +121,14 @@ with ThreadPoolExecutor(max_threads) as executor:
                 df_chunk.to_excel(writer, index=False, header=False, startrow=startrow)
 
             results = []
-            print(f"Сохранил {count} обработанных ссылок (включая старые)")
+            print(f"Links saved: {count}")
+
+        if count % 10000 == 0:
+            backup_file = f"kbju_backup_{count}.xlsx"
+            df_backup = pd.DataFrame(results, columns=columns)
+            if not os.path.exists(output_file):
+                df_backup.to_excel(backup_file, index=False)
+                print(f"Backup created: {backup_file}")
 
 # Финальное сохранение
 if results:
