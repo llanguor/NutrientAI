@@ -1,3 +1,5 @@
+import shutil
+
 import pandas as pd
 import requests
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -118,7 +120,12 @@ with ThreadPoolExecutor(max_threads) as executor:
                 df_chunk.to_excel(writer, index=False, header=False, startrow=startrow)
 
             results = []
-            print(f"Сохранил {count} обработанных ссылок (включая старые)")
+            print(f"Сохранено {count} ссылок")
+
+        if count % 2500 == 0:
+            backup_name = f"backup-{count}.xlsx"
+            shutil.copy(output_file, backup_name)
+            print(f"Создан бекап: {backup_name}")
 
 # Финальное сохранение
 if results:

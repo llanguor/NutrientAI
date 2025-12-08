@@ -94,6 +94,7 @@ def register_handlers(bot: telebot.TeleBot):
             logger.info(f"User {message.chat.id} get dish: {dish_name}")
 
             dish_name_en = translator.translate(dish_name, src='auto', dest='en').text
+            dish_name_en = dish_name_en.lower()
             calories, fats, carbs, proteins = predict(dish_name_en)
 
             answer = (
